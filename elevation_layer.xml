@@ -1,0 +1,13 @@
+<library path="nav2_elevation_difference_costmap_plugin_core">
+
+  <class
+      type="nav2_elevation_difference_costmap_plugin::ElevationLayer"
+      base_class_type="nav2_costmap_2d::Layer">
+
+    <description>
+      Example Elevation Layer
+    </description>
+
+  </class>
+
+</library>
