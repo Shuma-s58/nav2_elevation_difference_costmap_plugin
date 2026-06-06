@@ -44,29 +44,20 @@ void ElevationLayer::updateBounds(
 
 
 // circle wave //
-void ElevationLayer::updateCosts(nav2_costmap_2d::Costmap2D & master_grid, int min_i, int min_j, int max_i, int max_j)
+void ElevationLayer::updateCosts(
+  nav2_costmap_2d::Costmap2D & master_grid,
+  int min_i,
+  int min_j,
+  int max_i,
+  int max_j)
 {
-
   if (!latest_cloud_) {
     return;
-  }
-
-  unsigned char * master_array =
-    master_grid.getCharMap();
-
-  for (int j = min_j; j < max_j; j++) {
-    for (int i = min_i; i < max_i; i++) {
-
-      int index = master_grid.getIndex(i, j);
-
-      master_array[index] = 0;
-    }
   }
 
   sensor_msgs::msg::PointCloud2 cloud_odom;
 
   try {
-
     auto tf =
       tf_buffer_->lookupTransform(
         "odom",
@@ -88,6 +79,21 @@ void ElevationLayer::updateCosts(nav2_costmap_2d::Costmap2D & master_grid, int m
     return;
   }
 
+  const unsigned int size_x =
+    master_grid.getSizeInCellsX();
+
+  const unsigned int size_y =
+    master_grid.getSizeInCellsY();
+
+  struct CellInfo
+  {
+    bool initialized = false;
+    float z_min = 0.0f;
+    float z_max = 0.0f;
+  };
+
+  std::vector<CellInfo> cells(size_x * size_y);
+
   sensor_msgs::PointCloud2ConstIterator<float>
     iter_x(cloud_odom, "x");
   sensor_msgs::PointCloud2ConstIterator<float>
@@ -95,31 +101,92 @@ void ElevationLayer::updateCosts(nav2_costmap_2d::Costmap2D & master_grid, int m
   sensor_msgs::PointCloud2ConstIterator<float>
     iter_z(cloud_odom, "z");
 
+  //
+  // 点群を走査して zmin / zmax を集計
+  //
   for (;
        iter_x != iter_x.end();
        ++iter_x, ++iter_y, ++iter_z)
   {
-    float x = *iter_x;
-    float y = *iter_y;
-    float z = *iter_z;
-
-    if (z < 0.1) {
-      continue;
-    }
+    const float x = *iter_x;
+    const float y = *iter_y;
+    const float z = *iter_z;
 
     unsigned int mx;
     unsigned int my;
 
-    if (master_grid.worldToMap(
+    if (!master_grid.worldToMap(
           x,
           y,
           mx,
           my))
     {
-      int index =
+      continue;
+    }
+
+    const unsigned int index =
+      master_grid.getIndex(mx, my);
+
+    auto & cell = cells[index];
+
+    if (!cell.initialized) {
+
+      cell.initialized = true;
+      cell.z_min = z;
+      cell.z_max = z;
+
+    } else {
+
+      cell.z_min =
+        std::min(cell.z_min, z);
+
+      cell.z_max =
+        std::max(cell.z_max, z);
+    }
+  }
+
+  //
+  // Δzからコスト生成
+  //
+  for (unsigned int my = 0;
+       my < size_y;
+       ++my)
+  {
+    for (unsigned int mx = 0;
+         mx < size_x;
+         ++mx)
+    {
+      const unsigned int index =
         master_grid.getIndex(mx, my);
 
-      master_array[index] = 254;
+      const auto & cell =
+        cells[index];
+
+      if (!cell.initialized) {
+        continue;
+      }
+
+      const float dz =
+        cell.z_max - cell.z_min;
+
+      unsigned char cost;
+
+      if (dz >= 0.30f) {
+
+        cost = 254;
+
+      } else {
+
+        cost = static_cast<unsigned char>(
+          std::min(
+            254.0f,
+            dz / 0.30f * 254.0f));
+      }
+
+      master_grid.setCost(
+        mx,
+        my,
+        cost);
     }
   }
 }
