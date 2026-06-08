@@ -1,5 +1,4 @@
 ## nav2_elevation_difference_costmap_plugin
----
 
 このリポジトリは, nav2のcostmap用のpluginです.  
 高低差格子地図の仕組みを実装しています.
