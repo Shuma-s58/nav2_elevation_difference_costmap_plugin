@@ -102,6 +102,13 @@ void ElevationLayer::onInitialize()
     name_ + ".enabled",
     enabled_);
 
+  dyn_params_handler_ =
+    node->add_on_set_parameters_callback(
+      std::bind(
+        &ElevationLayer::dynamicParametersCallback,
+        this,
+        std::placeholders::_1));
+
   std::string topic;
 
   node->get_parameter(
@@ -435,6 +442,8 @@ void ElevationLayer::updateCosts(
 
   touched_cells_.clear();
 
+  current_ = true;
+
   const auto elapsed =
     std::chrono::duration<double, std::milli>(
       std::chrono::steady_clock::now() -
@@ -477,6 +486,36 @@ void ElevationLayer::reset()
 bool ElevationLayer::isClearable()
 {
   return false;
+}
+
+rcl_interfaces::msg::SetParametersResult
+ElevationLayer::dynamicParametersCallback(
+  std::vector<rclcpp::Parameter> parameters)
+{
+  rcl_interfaces::msg::SetParametersResult result;
+
+  for (const auto & parameter : parameters) {
+
+    const auto & param_name = parameter.get_name();
+    const auto & param_type = parameter.get_type();
+
+    if (
+      param_name == name_ + ".enabled" &&
+      param_type == rclcpp::ParameterType::PARAMETER_BOOL)
+    {
+      if (enabled_ != parameter.as_bool()) {
+
+        enabled_ = parameter.as_bool();
+
+        if (enabled_) {
+          current_ = false;
+        }
+      }
+    }
+  }
+
+  result.successful = true;
+  return result;
 }
 
 }  // namespace nav2_elevation_difference_costmap_plugin

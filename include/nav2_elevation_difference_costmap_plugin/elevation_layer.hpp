@@ -3,6 +3,8 @@
 
 #include "nav2_costmap_2d/layer.hpp"
 #include "nav2_costmap_2d/layered_costmap.hpp"
+#include "rcl_interfaces/msg/set_parameters_result.hpp"
+#include "rclcpp/rclcpp.hpp"
 
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -13,6 +15,7 @@
 #include <memory>
 #include <mutex>
 #include <vector>
+#include <atomic>
 
 namespace nav2_elevation_difference_costmap_plugin
 {
@@ -88,7 +91,12 @@ private:
   std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
-  bool enabled_ = true;
+  rcl_interfaces::msg::SetParametersResult dynamicParametersCallback(std::vector<rclcpp::Parameter> parameters);
+
+  rclcpp::node_interfaces::
+  OnSetParametersCallbackHandle::SharedPtr dyn_params_handler_;
+
+  std::atomic<bool> enabled_{true};
 
   static constexpr float kMinElevationDifference = 0.005f;
   static constexpr float kMaxElevationDifference = 0.01f;
