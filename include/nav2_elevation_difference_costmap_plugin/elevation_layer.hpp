@@ -93,8 +93,7 @@ private:
 
   rcl_interfaces::msg::SetParametersResult dynamicParametersCallback(std::vector<rclcpp::Parameter> parameters);
 
-  rclcpp::node_interfaces::
-  OnSetParametersCallbackHandle::SharedPtr dyn_params_handler_;
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr dyn_params_handler_;
 
   std::atomic<bool> enabled_{true};
 
